@@ -20,11 +20,12 @@ final class ScreenshotOverlayController {
         let overlayView = ScreenshotOverlayView(frame: NSRect(origin: .zero, size: screen.frame.size)) {
             self.closeOverlay()
         } confirmHandler: { rect in
-            self.closeOverlay()
-
             let captureRect = self.selectionRectInScreenCoordinates(selectionRect: rect, screenFrame: screen.frame)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.10) {
-                ScreenshotCaptureEngine.shared.captureAndSave(region: captureRect)
+
+            self.closeOverlay {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.10) {
+                    ScreenshotCaptureEngine.shared.captureAndSave(region: captureRect)
+                }
             }
         }
 
@@ -37,9 +38,16 @@ final class ScreenshotOverlayController {
         NSApp.activate(ignoringOtherApps: true)
     }
 
-    func closeOverlay() {
+    func closeOverlay(completion: (() -> Void)? = nil) {
         overlayWindow?.orderOut(nil)
+        overlayWindow?.contentView = nil
         overlayWindow = nil
+
+        if let completion = completion {
+            DispatchQueue.main.async {
+                completion()
+            }
+        }
     }
 
     private func activeScreen() -> NSScreen? {
