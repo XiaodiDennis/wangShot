@@ -24,7 +24,7 @@ final class ScreenshotOverlayController {
 
             self.closeOverlay {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.10) {
-                    ScreenshotCaptureEngine.shared.captureAndSave(region: captureRect)
+                    ScreenshotCaptureEngine.shared.capture(region: captureRect)
                 }
             }
         }

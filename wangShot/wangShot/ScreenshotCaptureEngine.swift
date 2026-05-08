@@ -6,7 +6,7 @@ final class ScreenshotCaptureEngine {
 
     private init() {}
 
-    func captureAndSave(region: CGRect) {
+    func capture(region: CGRect) {
         SCScreenshotManager.captureImage(in: region) { image, error in
             if let error = error {
                 print("[wangShot] Screenshot capture failed: \(error.localizedDescription)")
@@ -20,24 +20,8 @@ final class ScreenshotCaptureEngine {
 
             let outputImage = ScreenshotImageProcessor.beautify(image) ?? image
 
-            do {
-                try ScreenshotFileManager.shared.prepareScreenshotDirectory()
-                let fileURL = ScreenshotFileManager.shared.nextScreenshotURL()
-                try ScreenshotFileManager.shared.savePNG(image: outputImage, to: fileURL)
-
-                do {
-                    try ClipboardManager.shared.copyImageToClipboard(outputImage)
-                    print("[wangShot] Copied screenshot image to clipboard")
-                } catch {
-                    print("[wangShot] Clipboard copy failed: \(error.localizedDescription)")
-                }
-
-                DispatchQueue.main.async {
-                    print("[wangShot] Saved screenshot to \(fileURL.path)")
-                    ScreenshotFileManager.shared.revealInFinder(fileURL)
-                }
-            } catch {
-                print("[wangShot] Screenshot save failed: \(error.localizedDescription)")
+            DispatchQueue.main.async {
+                AnnotationEditorWindowController.present(with: outputImage)
             }
         }
     }
