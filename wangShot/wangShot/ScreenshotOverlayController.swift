@@ -20,8 +20,12 @@ final class ScreenshotOverlayController {
         let overlayView = ScreenshotOverlayView(frame: NSRect(origin: .zero, size: screen.frame.size)) {
             self.closeOverlay()
         } confirmHandler: { rect in
-            print("[wangShot] Selected rect: \(rect)")
             self.closeOverlay()
+
+            let captureRect = self.selectionRectInScreenCoordinates(selectionRect: rect, screenFrame: screen.frame)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.10) {
+                ScreenshotCaptureEngine.shared.captureAndSave(region: captureRect)
+            }
         }
 
         window.contentView = overlayView
@@ -41,5 +45,11 @@ final class ScreenshotOverlayController {
     private func activeScreen() -> NSScreen? {
         let mouseLocation = NSEvent.mouseLocation
         return NSScreen.screens.first { $0.frame.contains(mouseLocation) } ?? NSScreen.main
+    }
+
+    private func selectionRectInScreenCoordinates(selectionRect: CGRect, screenFrame: CGRect) -> CGRect {
+        let x = screenFrame.minX + selectionRect.minX
+        let y = screenFrame.maxY - selectionRect.maxY
+        return CGRect(x: x, y: y, width: selectionRect.width, height: selectionRect.height)
     }
 }
