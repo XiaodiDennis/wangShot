@@ -7,12 +7,14 @@ final class AnnotationEditorViewModel: ObservableObject {
         case rectangle
         case arrow
         case text
+        case mosaic
     }
 
     @Published var selectedTool: Tool = .rectangle
     @Published var selectedColor: NSColor = .systemRed
     @Published var selectedLineWidth: CGFloat = 4
     @Published var selectedFontSize: CGFloat = 18
+    @Published var selectedMosaicStrength: Annotation.MosaicStrength = .medium
     @Published var annotations: [Annotation] = []
     @Published var undoneAnnotations: [Annotation] = []
     @Published var currentAnnotation: Annotation?
@@ -31,19 +33,16 @@ final class AnnotationEditorViewModel: ObservableObject {
         }
 
         undoneAnnotations.removeAll()
-        let kind: Annotation.Kind
         switch selectedTool {
-        case .select:
-            kind = .select
         case .rectangle:
-            kind = .rectangle
+            currentAnnotation = Annotation.create(kind: .rectangle, start: point, end: point, color: selectedColor, lineWidth: selectedLineWidth)
         case .arrow:
-            kind = .arrow
-        case .text:
-            kind = .text
+            currentAnnotation = Annotation.create(kind: .arrow, start: point, end: point, color: selectedColor, lineWidth: selectedLineWidth)
+        case .mosaic:
+            currentAnnotation = Annotation.createMosaic(start: point, end: point, strength: selectedMosaicStrength)
+        case .select, .text:
+            return
         }
-
-        currentAnnotation = Annotation.create(kind: kind, start: point, end: point, color: selectedColor, lineWidth: selectedLineWidth)
     }
 
     func addTextAnnotation(text: String, at point: CGPoint) {

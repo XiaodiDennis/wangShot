@@ -26,20 +26,26 @@ final class AnnotationRenderer {
         context.clear(CGRect(x: 0, y: 0, width: width, height: height))
         context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
 
-        for annotation in annotations {
-            draw(annotation: annotation, in: context, imageHeight: CGFloat(height))
+        for annotation in annotations where annotation.kind == .mosaic {
+            draw(annotation: annotation, in: context, image: image, imageHeight: CGFloat(height))
+        }
+
+        for annotation in annotations where annotation.kind != .mosaic {
+            draw(annotation: annotation, in: context, image: image, imageHeight: CGFloat(height))
         }
 
         return context.makeImage()
     }
 
-    private static func draw(annotation: Annotation, in context: CGContext, imageHeight: CGFloat) {
-        guard let cgColor = annotation.color.usingColorSpace(.deviceRGB)?.cgColor else {
-            return
-        }
-
+    private static func draw(annotation: Annotation, in context: CGContext, image: CGImage, imageHeight: CGFloat) {
         switch annotation.kind {
+        case .mosaic:
+            drawMosaic(annotation: annotation, in: context, image: image, imageHeight: imageHeight)
+
         case .rectangle:
+            guard let cgColor = annotation.color.usingColorSpace(.deviceRGB)?.cgColor else {
+                return
+            }
             context.setStrokeColor(cgColor)
             context.setLineWidth(annotation.lineWidth)
             context.setLineCap(.round)
@@ -48,6 +54,9 @@ final class AnnotationRenderer {
             context.stroke(rect)
 
         case .arrow:
+            guard let cgColor = annotation.color.usingColorSpace(.deviceRGB)?.cgColor else {
+                return
+            }
             context.setStrokeColor(cgColor)
             context.setLineWidth(annotation.lineWidth)
             context.setLineCap(.round)
@@ -89,6 +98,88 @@ final class AnnotationRenderer {
         NSGraphicsContext.current = nsContext
         (text as NSString).draw(at: CGPoint(x: point.x, y: baselineY), withAttributes: attributes)
         NSGraphicsContext.restoreGraphicsState()
+    }
+
+    private static func drawMosaic(annotation: Annotation, in context: CGContext, image: CGImage, imageHeight: CGFloat) {
+        guard let pixelated = pixelatedRegion(for: annotation, in: image) else {
+            return
+        }
+
+        let rect = rectangle(for: annotation, imageHeight: imageHeight)
+        context.draw(pixelated, in: rect)
+    }
+
+    static func pixelatedRegion(for annotation: Annotation, in image: CGImage) -> CGImage? {
+        guard annotation.mosaicStyle == .pixelate else {
+            return nil
+        }
+
+        let cropRect = croppingRect(for: annotation)
+        guard cropRect.width > 0, cropRect.height > 0,
+              let cropped = image.cropping(to: cropRect) else {
+            return nil
+        }
+
+        let blockSize = blockSize(for: annotation.mosaicStrength ?? .medium)
+        let scaledWidth = max(1, Int(cropRect.width) / blockSize)
+        let scaledHeight = max(1, Int(cropRect.height) / blockSize)
+        guard let colorSpace = CGColorSpace(name: CGColorSpace.sRGB) else {
+            return nil
+        }
+
+        let bitmapInfo = CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue
+        guard let smallContext = CGContext(
+            data: nil,
+            width: scaledWidth,
+            height: scaledHeight,
+            bitsPerComponent: 8,
+            bytesPerRow: 0,
+            space: colorSpace,
+            bitmapInfo: bitmapInfo
+        ) else {
+            return nil
+        }
+
+        smallContext.interpolationQuality = .none
+        smallContext.draw(cropped, in: CGRect(x: 0, y: 0, width: CGFloat(scaledWidth), height: CGFloat(scaledHeight)))
+        guard let smallImage = smallContext.makeImage() else {
+            return nil
+        }
+
+        guard let largeContext = CGContext(
+            data: nil,
+            width: Int(cropRect.width),
+            height: Int(cropRect.height),
+            bitsPerComponent: 8,
+            bytesPerRow: 0,
+            space: colorSpace,
+            bitmapInfo: bitmapInfo
+        ) else {
+            return nil
+        }
+
+        largeContext.interpolationQuality = .none
+        largeContext.draw(smallImage, in: CGRect(x: 0, y: 0, width: cropRect.width, height: cropRect.height))
+        return largeContext.makeImage()
+    }
+
+    private static func croppingRect(for annotation: Annotation) -> CGRect {
+        let origin = CGPoint(x: min(annotation.start.x, annotation.end.x),
+                             y: min(annotation.start.y, annotation.end.y))
+        let size = CGSize(width: abs(annotation.end.x - annotation.start.x),
+                          height: abs(annotation.end.y - annotation.start.y))
+        return CGRect(origin: origin, size: size)
+    }
+
+    private static func blockSize(for strength: Annotation.MosaicStrength) -> Int {
+        switch strength {
+        case .low:
+            return 24
+        case .medium:
+            return 12
+        case .high:
+            return 6
+        }
     }
 
     private static func rectangle(for annotation: Annotation, imageHeight: CGFloat) -> CGRect {

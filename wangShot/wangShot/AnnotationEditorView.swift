@@ -32,6 +32,7 @@ struct AnnotationEditorView: View {
     private var toolbar: some View {
         HStack(spacing: 16) {
             toolButtons
+            mosaicStrengthButtons
             colorButtons
             widthButtons
             fontSizeButtons
@@ -46,6 +47,7 @@ struct AnnotationEditorView: View {
             toolButton(title: "Rectangle", tool: .rectangle)
             toolButton(title: "Arrow", tool: .arrow)
             toolButton(title: "Text", tool: .text)
+            toolButton(title: "Mosaic", tool: .mosaic)
         }
     }
 
@@ -118,6 +120,34 @@ struct AnnotationEditorView: View {
         }
         .opacity(viewModel.selectedTool == .text ? 1 : 0.5)
         .disabled(viewModel.selectedTool != .text)
+    }
+
+    private var mosaicStrengthButtons: some View {
+        HStack(spacing: 8) {
+            ForEach([Annotation.MosaicStrength.low, .medium, .high], id: \.self) { strength in
+                Button(action: { viewModel.selectedMosaicStrength = strength }) {
+                    Text(strengthLabel(strength))
+                        .font(.system(size: 12, weight: .semibold))
+                        .frame(width: 64, height: 28)
+                        .background(viewModel.selectedMosaicStrength == strength ? Color.accentColor.opacity(0.2) : Color.clear)
+                        .cornerRadius(6)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .opacity(viewModel.selectedTool == .mosaic ? 1 : 0.5)
+        .disabled(viewModel.selectedTool != .mosaic)
+    }
+
+    private func strengthLabel(_ strength: Annotation.MosaicStrength) -> String {
+        switch strength {
+        case .low:
+            return "Low"
+        case .medium:
+            return "Medium"
+        case .high:
+            return "High"
+        }
     }
 
     private var undoRedoButtons: some View {

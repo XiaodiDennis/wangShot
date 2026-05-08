@@ -49,7 +49,11 @@ final class AnnotationCanvasNSView: NSView, NSTextFieldDelegate {
         let nsImage = viewModel.nsImage
         nsImage.draw(in: imageFrame, from: .zero, operation: .sourceOver, fraction: 1.0)
 
-        for annotation in viewModel.annotations {
+        let sortedAnnotations = viewModel.annotations.sorted { first, second in
+            first.kind == .mosaic && second.kind != .mosaic
+        }
+
+        for annotation in sortedAnnotations {
             draw(annotation: annotation, in: imageFrame, imageSize: imageSize)
         }
 
@@ -217,6 +221,17 @@ final class AnnotationCanvasNSView: NSView, NSTextFieldDelegate {
                 .foregroundColor: annotation.color
             ]
             (text as NSString).draw(at: start, withAttributes: attributes)
+
+        case .mosaic:
+            let rect = CGRect(x: min(start.x, end.x),
+                              y: min(start.y, end.y),
+                              width: abs(end.x - start.x),
+                              height: abs(end.y - start.y))
+            if rect.width > 0, rect.height > 0,
+               let pixelated = AnnotationRenderer.pixelatedRegion(for: annotation, in: viewModel.cgImage) {
+                let nsImage = NSImage(cgImage: pixelated, size: rect.size)
+                nsImage.draw(in: rect, from: NSRect.zero, operation: NSCompositingOperation.sourceOver, fraction: 1.0)
+            }
 
         case .select:
             break
