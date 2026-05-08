@@ -38,17 +38,19 @@ final class AnnotationRenderer {
             return
         }
 
-        context.setStrokeColor(cgColor)
-        context.setLineWidth(annotation.lineWidth)
-        context.setLineCap(.round)
-        context.setLineJoin(.round)
-
         switch annotation.kind {
         case .rectangle:
+            context.setStrokeColor(cgColor)
+            context.setLineWidth(annotation.lineWidth)
+            context.setLineCap(.round)
+            context.setLineJoin(.round)
             let rect = rectangle(for: annotation, imageHeight: imageHeight)
             context.stroke(rect)
 
         case .arrow:
+            context.setStrokeColor(cgColor)
+            context.setLineWidth(annotation.lineWidth)
+            context.setLineCap(.round)
             let start = cgPoint(from: annotation.start, imageHeight: imageHeight)
             let end = cgPoint(from: annotation.end, imageHeight: imageHeight)
             context.beginPath()
@@ -57,9 +59,36 @@ final class AnnotationRenderer {
             context.strokePath()
             drawArrowHead(from: start, to: end, lineWidth: annotation.lineWidth, in: context)
 
+        case .text:
+            drawText(annotation: annotation, in: context, imageHeight: imageHeight)
+
         case .select:
             break
         }
+    }
+
+    private static func drawText(annotation: Annotation, in context: CGContext, imageHeight: CGFloat) {
+        guard let text = annotation.text else {
+            return
+        }
+
+        let font = NSFont.systemFont(ofSize: annotation.fontSize)
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.lineBreakMode = .byWordWrapping
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: annotation.color,
+            .paragraphStyle: paragraphStyle
+        ]
+
+        let point = cgPoint(from: annotation.start, imageHeight: imageHeight)
+        let baselineY = point.y - font.ascender
+
+        let nsContext = NSGraphicsContext(cgContext: context, flipped: false)
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = nsContext
+        (text as NSString).draw(at: CGPoint(x: point.x, y: baselineY), withAttributes: attributes)
+        NSGraphicsContext.restoreGraphicsState()
     }
 
     private static func rectangle(for annotation: Annotation, imageHeight: CGFloat) -> CGRect {

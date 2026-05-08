@@ -13,9 +13,12 @@ struct AnnotationCanvasView: NSViewRepresentable {
     }
 }
 
-final class AnnotationCanvasNSView: NSView {
+final class AnnotationCanvasNSView: NSView, NSTextFieldDelegate {
     private let viewModel: AnnotationEditorViewModel
     private var imageFrame: CGRect = .zero
+    private var textField: NSTextField?
+    private var textFieldImagePoint: CGPoint?
+    private var isCancellingText: Bool = false
 
     init(viewModel: AnnotationEditorViewModel) {
         self.viewModel = viewModel
@@ -56,8 +59,8 @@ final class AnnotationCanvasNSView: NSView {
     }
 
     override func mouseDown(with event: NSEvent) {
-        guard viewModel.selectedTool != .select else {
-            return
+        if textField != nil {
+            commitTextField()
         }
 
         let location = convert(event.locationInWindow, from: nil)
@@ -66,12 +69,22 @@ final class AnnotationCanvasNSView: NSView {
         }
 
         let imagePoint = convertToImagePoint(location)
+
+        if viewModel.selectedTool == .text {
+            presentTextField(at: location, imagePoint: imagePoint)
+            return
+        }
+
+        guard viewModel.selectedTool != .select else {
+            return
+        }
+
         viewModel.beginAnnotation(at: imagePoint)
         needsDisplay = true
     }
 
     override func mouseDragged(with event: NSEvent) {
-        guard viewModel.selectedTool != .select else {
+        guard viewModel.selectedTool != .select && viewModel.selectedTool != .text else {
             return
         }
 
@@ -82,12 +95,85 @@ final class AnnotationCanvasNSView: NSView {
     }
 
     override func mouseUp(with event: NSEvent) {
-        guard viewModel.selectedTool != .select else {
+        guard viewModel.selectedTool != .select && viewModel.selectedTool != .text else {
             return
         }
 
         viewModel.finishCurrentAnnotation()
         needsDisplay = true
+    }
+
+    func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+        if commandSelector == #selector(NSResponder.insertNewline(_:)) {
+            commitTextField()
+            return true
+        }
+
+        if commandSelector == #selector(NSResponder.cancelOperation(_:)) {
+            cancelTextField()
+            return true
+        }
+
+        return false
+    }
+
+    func controlTextDidEndEditing(_ obj: Notification) {
+        if isCancellingText {
+            isCancellingText = false
+            return
+        }
+
+        commitTextField()
+    }
+
+    private func presentTextField(at location: CGPoint, imagePoint: CGPoint) {
+        removeTextField()
+
+        let width: CGFloat = min(320, bounds.width - location.x - 20)
+        let height: CGFloat = 28
+        let x = min(location.x, bounds.width - width - 10)
+        let y = min(location.y, bounds.height - height - 10)
+        let frame = CGRect(x: max(10, x), y: max(10, y), width: width, height: height)
+
+        let field = NSTextField(frame: frame)
+        field.delegate = self
+        field.font = NSFont.systemFont(ofSize: viewModel.selectedFontSize)
+        field.textColor = viewModel.selectedColor
+        field.backgroundColor = .clear
+        field.isBordered = true
+        field.isBezeled = true
+        field.focusRingType = .default
+        field.placeholderString = "Type text and press Enter"
+        field.stringValue = ""
+
+        addSubview(field)
+        textField = field
+        textFieldImagePoint = imagePoint
+        window?.makeFirstResponder(field)
+    }
+
+    private func commitTextField() {
+        guard let field = textField, let position = textFieldImagePoint else {
+            removeTextField()
+            return
+        }
+
+        let text = field.stringValue
+        viewModel.addTextAnnotation(text: text, at: position)
+        removeTextField()
+        needsDisplay = true
+    }
+
+    private func cancelTextField() {
+        isCancellingText = true
+        removeTextField()
+        needsDisplay = true
+    }
+
+    private func removeTextField() {
+        textField?.removeFromSuperview()
+        textField = nil
+        textFieldImagePoint = nil
     }
 
     private func draw(annotation: Annotation, in imageFrame: CGRect, imageSize: CGSize) {
@@ -98,15 +184,13 @@ final class AnnotationCanvasNSView: NSView {
         let start = displayPoint(from: annotation.start, imageSize: imageSize, imageFrame: imageFrame)
         let end = displayPoint(from: annotation.end, imageSize: imageSize, imageFrame: imageFrame)
 
-        let path = NSBezierPath()
-        path.lineWidth = annotation.lineWidth
-        path.lineCapStyle = .round
-        path.lineJoinStyle = .round
-
-        annotation.color.setStroke()
-
         switch annotation.kind {
         case .rectangle:
+            let path = NSBezierPath()
+            path.lineWidth = annotation.lineWidth
+            path.lineCapStyle = .round
+            path.lineJoinStyle = .round
+            annotation.color.setStroke()
             let rect = CGRect(x: min(start.x, end.x),
                               y: min(start.y, end.y),
                               width: abs(end.x - start.x),
@@ -115,10 +199,24 @@ final class AnnotationCanvasNSView: NSView {
             path.stroke()
 
         case .arrow:
+            let path = NSBezierPath()
+            path.lineWidth = annotation.lineWidth
+            path.lineCapStyle = .round
+            annotation.color.setStroke()
             path.move(to: start)
             path.line(to: end)
             path.stroke()
             drawArrowHead(from: start, to: end, lineWidth: annotation.lineWidth, color: annotation.color)
+
+        case .text:
+            guard let text = annotation.text else {
+                return
+            }
+            let attributes: [NSAttributedString.Key: Any] = [
+                .font: NSFont.systemFont(ofSize: annotation.fontSize),
+                .foregroundColor: annotation.color
+            ]
+            (text as NSString).draw(at: start, withAttributes: attributes)
 
         case .select:
             break

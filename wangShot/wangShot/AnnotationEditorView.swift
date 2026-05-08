@@ -8,6 +8,7 @@ struct AnnotationEditorView: View {
 
     private let colors: [NSColor] = [.systemRed, .systemBlue, .systemYellow, .systemGreen, .black, .white]
     private let lineWidths: [CGFloat] = [2, 4, 6]
+    private let fontSizes: [CGFloat] = [14, 18, 24, 32]
 
     var body: some View {
         VStack(spacing: 0) {
@@ -33,6 +34,7 @@ struct AnnotationEditorView: View {
             toolButtons
             colorButtons
             widthButtons
+            fontSizeButtons
             Spacer()
             undoRedoButtons
         }
@@ -43,6 +45,7 @@ struct AnnotationEditorView: View {
             toolButton(title: "Select", tool: .select)
             toolButton(title: "Rectangle", tool: .rectangle)
             toolButton(title: "Arrow", tool: .arrow)
+            toolButton(title: "Text", tool: .text)
         }
     }
 
@@ -97,6 +100,24 @@ struct AnnotationEditorView: View {
                 .buttonStyle(.plain)
             }
         }
+    }
+
+    private var fontSizeButtons: some View {
+        HStack(spacing: 8) {
+            ForEach(fontSizes.indices, id: \.self) { index in
+                let size = fontSizes[index]
+                Button(action: { viewModel.selectedFontSize = size }) {
+                    Text("\(Int(size))")
+                        .font(.system(size: 12, weight: .semibold))
+                        .frame(width: 32, height: 28)
+                        .background(viewModel.selectedFontSize == size ? Color.accentColor.opacity(0.2) : Color.clear)
+                        .cornerRadius(6)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .opacity(viewModel.selectedTool == .text ? 1 : 0.5)
+        .disabled(viewModel.selectedTool != .text)
     }
 
     private var undoRedoButtons: some View {

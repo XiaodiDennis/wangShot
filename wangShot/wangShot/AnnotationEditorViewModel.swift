@@ -6,11 +6,13 @@ final class AnnotationEditorViewModel: ObservableObject {
         case select
         case rectangle
         case arrow
+        case text
     }
 
     @Published var selectedTool: Tool = .rectangle
     @Published var selectedColor: NSColor = .systemRed
     @Published var selectedLineWidth: CGFloat = 4
+    @Published var selectedFontSize: CGFloat = 18
     @Published var annotations: [Annotation] = []
     @Published var undoneAnnotations: [Annotation] = []
     @Published var currentAnnotation: Annotation?
@@ -24,7 +26,7 @@ final class AnnotationEditorViewModel: ObservableObject {
     }
 
     func beginAnnotation(at point: CGPoint) {
-        guard selectedTool != .select else {
+        guard selectedTool != .select && selectedTool != .text else {
             return
         }
 
@@ -37,9 +39,22 @@ final class AnnotationEditorViewModel: ObservableObject {
             kind = .rectangle
         case .arrow:
             kind = .arrow
+        case .text:
+            kind = .text
         }
 
         currentAnnotation = Annotation.create(kind: kind, start: point, end: point, color: selectedColor, lineWidth: selectedLineWidth)
+    }
+
+    func addTextAnnotation(text: String, at point: CGPoint) {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            return
+        }
+
+        undoneAnnotations.removeAll()
+        let annotation = Annotation.createText(text: trimmed, at: point, color: selectedColor, fontSize: selectedFontSize)
+        annotations.append(annotation)
     }
 
     func updateCurrentAnnotation(to point: CGPoint) {
