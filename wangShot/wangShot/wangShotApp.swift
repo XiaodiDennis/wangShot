@@ -5,6 +5,7 @@
 //  Created by Dennis Hsiao Ti WANG on 5/8/26.
 //
 
+import AppKit
 import SwiftUI
 
 @main
@@ -26,7 +27,7 @@ private struct MenuBarContent: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Button("Capture Screenshot") {
-                print("Capture Screenshot clicked")
+                ScreenshotOverlayController.shared.showOverlay()
             }
             Button("OCR") {
                 print("OCR clicked")
