@@ -25,6 +25,13 @@ final class ScreenshotCaptureEngine {
                 let fileURL = ScreenshotFileManager.shared.nextScreenshotURL()
                 try ScreenshotFileManager.shared.savePNG(image: outputImage, to: fileURL)
 
+                do {
+                    try ClipboardManager.shared.copyImageToClipboard(outputImage)
+                    print("[wangShot] Copied screenshot image to clipboard")
+                } catch {
+                    print("[wangShot] Clipboard copy failed: \(error.localizedDescription)")
+                }
+
                 DispatchQueue.main.async {
                     print("[wangShot] Saved screenshot to \(fileURL.path)")
                     ScreenshotFileManager.shared.revealInFinder(fileURL)
