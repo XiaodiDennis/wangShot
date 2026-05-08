@@ -18,10 +18,12 @@ final class ScreenshotCaptureEngine {
                 return
             }
 
+            let outputImage = ScreenshotImageProcessor.beautify(image) ?? image
+
             do {
                 try ScreenshotFileManager.shared.prepareScreenshotDirectory()
                 let fileURL = ScreenshotFileManager.shared.nextScreenshotURL()
-                try ScreenshotFileManager.shared.savePNG(image: image, to: fileURL)
+                try ScreenshotFileManager.shared.savePNG(image: outputImage, to: fileURL)
 
                 DispatchQueue.main.async {
                     print("[wangShot] Saved screenshot to \(fileURL.path)")
